@@ -4,12 +4,12 @@ import numpy as np
 import os
 import random
  
-st.set_page_config(page_title="Deployment Rollout Index (DRI)", layout="wide")
+st.set_page_config(page_title="Ericsson Outcome Calculator", layout="wide")
  
 # -------------------------
 # 1. SIDEBAR – GLOBAL SETTINGS
 # -------------------------
-st.sidebar.title("DRI Control Panel")
+st.sidebar.title("Outcome Control Panel")
  
 st.sidebar.markdown("### Dimension Weights (sum ≈ 100%)")
 w_scope = st.sidebar.slider("Scope Repeatability %", 0, 50, 20, 1)
@@ -215,7 +215,7 @@ df = load_observed_scores()
 df.index = df.index + 1
  
 # Allow user tweaks of baseline scores
-st.markdown("## Deployment Rollout Index – Baseline Projects")
+st.markdown("## Ericsson Outcome Metrics – Delivery Units")
 st.markdown(
     "You can fine‑tune 1–5 scores below (while on T&M) to reflect actual rollout experience. "
     "The DRI engine recomputes scores and pilot candidates in real time."

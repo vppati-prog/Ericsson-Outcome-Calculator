@@ -13,51 +13,50 @@ st.markdown("""
 st.markdown("---")
 
 # -------------------------
-# 1. KPI DEFINITIONS + TARGETS (Y1 simplified)
+# 1. KPI DEFINITIONS + TARGETS (Y1 simplified, 4 per tower)
 # -------------------------
 
-# Application Development (AD)
+# Application Operations
+ao_kpis = {
+    "AO - Ticket Automation Rate (%)": 30,
+    "AO - Agentic Deflection (%)": 30,
+    "AO - MTTR Improvement (%)": 20,
+    "AO - Incident Reduction (%)": 30,
+}
+
+# Application Development
 ad_kpis = {
     "AD - Story Generation Accuracy (%)": 70,
     "AD - Backlog Preparation Speed Improvement (%)": 20,
     "AD - Cycle Time Reduction (%)": 20,
-    "AD - AI-assisted Code Contribution (%)": 25,
     "AD - Automated Test Generation Coverage (%)": 40,
-    "AD - Defect Reduction (%)": 30,
 }
 
-# Application Operations (AO)
-ao_kpis = {
-    "AO - Service Ticket Automation Rate (%)": 30,
-    "AO - Service Request Deflection to Agentic Solutions (%)": 30,
-    "AO - Ticket Reduction (%)": 30,
-    "AO - MTTR Improvement (%)": 20,
-    "AO - Incident Reduction (%)": 30,
-    "AO - FCR Improvement (%)": 30,
-}
-
-# Transformation (TR)
+# Transformation
 tr_kpis = {
     "TR - GenAI Utilization Rate (%)": 50,
     "TR - Landscape Rationalization (%)": 20,
     "TR - Technical Debt Reduction (%)": 20,
-    "TR - Employee Satisfaction (%)": 80,
-    "TR - Autonomous Task Completion Rate (%)": 30,
     "TR - TCO Optimization (%)": 15,
 }
 
-# AI Governance (AI)
+# AI Governance
 ai_kpis = {
     "AI - Bias Monitoring Pass Rate (%)": 95,
     "AI - Guardrail Efficacy (%)": 95,
-    "AI - Sensitive Data Protection (%)": 100,
     "AI - Availability and Resiliency (%)": 99.9,
-    "AI - Model Change Control Success (%)": 95,
     "AI - Human-in-the-loop Coverage (%)": 100,
 }
 
-all_kpis = list(ao_kpis.keys()) + list(ad_kpis.keys()) + list(tr_kpis.keys()) + list(ai_kpis.keys())
+tower_kpis = {
+    "Application Operations": ao_kpis,
+    "Application Development": ad_kpis,
+    "Transformation": tr_kpis,
+    "AI Governance": ai_kpis,
+}
+
 all_targets = {**ao_kpis, **ad_kpis, **tr_kpis, **ai_kpis}
+all_kpis = list(all_targets.keys())
 
 # -------------------------
 # 2. SIDEBAR – GLOBAL SETTINGS
@@ -101,45 +100,45 @@ def load_observed_scores():
     return pd.DataFrame([
         [
             "ERP Managed Services",
-            35, 32, 28, 22, 30, 31,   # AO
-            72, 24, 22, 28, 42, 34,   # AD
-            55, 25, 21, 82, 35, 18,   # TR
-            96, 96, 100, 99.9, 96, 100  # AI
+            35, 32, 18, 28,   # AO
+            72, 24, 22, 42,   # AD
+            55, 25, 21, 18,   # TR
+            96, 96, 99.8, 100 # AI
         ],
         [
             "Digital Commerce",
-            42, 36, 33, 24, 38, 35,
-            78, 29, 30, 34, 48, 40,
-            62, 28, 24, 84, 42, 22,
-            97, 97, 100, 99.9, 97, 100
+            42, 36, 24, 38,
+            78, 29, 30, 48,
+            62, 28, 24, 22,
+            97, 97, 99.9, 100
         ],
         [
             "Supply Chain Platforms",
-            31, 28, 29, 18, 27, 30,
-            68, 18, 19, 23, 35, 28,
-            50, 22, 18, 80, 31, 16,
-            95, 95, 100, 99.8, 95, 100
+            24, 26, 11, 25,
+            68, 18, 19, 35,
+            50, 22, 18, 16,
+            95, 95, 99.7, 100
         ],
         [
             "Customer Experience Apps",
-            39, 35, 31, 21, 34, 33,
-            82, 31, 29, 37, 52, 43,
-            66, 30, 26, 85, 46, 24,
-            96, 96, 100, 99.9, 96, 100
+            28, 21, 20, 27,
+            82, 31, 29, 52,
+            66, 30, 26, 24,
+            96, 96, 99.8, 100
         ],
         [
             "Network Services",
-            44, 38, 36, 26, 41, 39,
-            70, 20, 18, 25, 38, 30,
-            58, 24, 20, 81, 33, 19,
-            98, 97, 100, 99.9, 97, 100
+            44, 30, 22, 40,
+            70, 20, 18, 38,
+            58, 24, 20, 19,
+            98, 97, 99.9, 100
         ],
         [
             "Enterprise Platforms",
-            41, 37, 35, 23, 39, 36,
-            76, 27, 26, 33, 45, 39,
-            63, 29, 25, 83, 40, 21,
-            97, 96, 100, 99.9, 96, 100
+            41, 39, 19, 34,
+            76, 27, 26, 45,
+            63, 29, 25, 21,
+            97, 96, 99.9, 100
         ],
     ], columns=["Business Unit"] + all_kpis)
 
@@ -155,10 +154,9 @@ def run_observability_agent(run_id=0):
             change = rng.uniform(-simulation_intensity, simulation_intensity)
             new_val = x + change
 
-            # KPI-specific bounds
             if "Availability and Resiliency" in col:
                 new_val = max(95, min(100, new_val))
-            elif "Sensitive Data Protection" in col or "Human-in-the-loop Coverage" in col:
+            elif "Human-in-the-loop Coverage" in col:
                 new_val = max(85, min(100, new_val))
             else:
                 new_val = max(0, min(100, new_val))
@@ -173,15 +171,14 @@ def get_status(value, target, strictness=1.0):
     adjusted_target = target * strictness
 
     if value >= adjusted_target:
-        return "🟢"
+        return "🟢 Green"
     elif value >= adjusted_target * 0.75:
-        return "🟡"
+        return "🟡 Amber"
     else:
-        return "🔴"
+        return "🔴 Red"
 
 def kpi_to_score(value, target, strictness=1.0):
     adjusted_target = target * strictness
-
     ratio = value / adjusted_target if adjusted_target != 0 else 0
 
     if ratio >= 1.0:
@@ -206,11 +203,11 @@ if st.button("Simulate real-time observability update"):
     load_observed_scores.clear()
 
     events = [
-        "Incident trends improved operational resilience in selected business units.",
-        "Release telemetry indicates stronger development throughput.",
-        "Transformation outcomes improved through automation acceleration.",
-        "AI governance controls detected variance in compliance posture.",
-        "Cross-unit service stability improved after change-risk reduction.",
+        "Operational telemetry indicates improvement in service automation and resilience.",
+        "Application development signals show stronger cycle time and test coverage outcomes.",
+        "Transformation telemetry reflects accelerated GenAI utilization and debt reduction.",
+        "AI governance monitoring highlights changes in compliance and resiliency posture.",
+        "Business-unit outcome profile has shifted based on latest observability signals.",
     ]
 
     rng = random.Random(5000 + st.session_state.agent_run_id)
@@ -218,15 +215,26 @@ if st.button("Simulate real-time observability update"):
     st.rerun()
 
 df = load_observed_scores()
-df.index = df.index + 1
 
 # -------------------------
-# 5. EDITABLE KPI TABLE
+# 5. KPI TARGETS (STATIC TABLE)
 # -------------------------
-st.markdown("## Outcome KPI Metrics by Business Unit")
+st.markdown("## KPI Targets")
+st.markdown("These are the outcome targets against which live KPI performance is evaluated.")
+
+targets_df = pd.DataFrame(
+    [(tower, kpi, target) for tower, kpis in tower_kpis.items() for kpi, target in kpis.items()],
+    columns=["Tower", "KPI", "Target"]
+)
+
+st.dataframe(targets_df, use_container_width=True, hide_index=True)
+
+# -------------------------
+# 6. OBSERVED KPI PERFORMANCE (EDITABLE)
+# -------------------------
+st.markdown("## Observed KPI Performance")
 st.markdown(
-    "Each KPI is outcome-centric and measurable. The observability agent simulates live KPI movements, "
-    "and the dashboard compares actuals against targets using Green / Amber / Red logic."
+    "These are the current observed KPI values by business unit. The observability agent can update them in real time."
 )
 
 column_config = {}
@@ -241,39 +249,55 @@ edited_df = st.data_editor(
 )
 
 # -------------------------
-# 6. KPI STATUS VIEW
+# 7. KPI STATUS + SCORE LOGIC
 # -------------------------
-st.markdown("## KPI Target Status View")
+st.markdown("## How KPI Values Translate to Tower Scores")
+st.info(
+    "Each KPI is compared against its target. "
+    "Green = target met/exceeded = Score 5, "
+    "Amber = near target = Score 3–4, "
+    "Red = below threshold = Score 1–2."
+)
 
-status_df = edited_df.copy()
+for tower_name, kpis in tower_kpis.items():
+    st.markdown(f"### {tower_name}")
 
-for col, target in all_targets.items():
-    status_df[col] = status_df[col].apply(
-        lambda v: f"{v:.1f}% {get_status(v, target, scoring_strictness)}"
-    )
+    # Actual observed KPI values
+    observed_cols = ["Business Unit"] + list(kpis.keys())
+    observed_view = edited_df[observed_cols].copy()
+    st.markdown("**Observed KPI Values**")
+    st.dataframe(observed_view, use_container_width=True, hide_index=True)
 
-st.dataframe(status_df, use_container_width=True, hide_index=True)
+    # RAG status view
+    status_view = edited_df[["Business Unit"]].copy()
+    for kpi_name, target in kpis.items():
+        status_view[kpi_name] = edited_df[kpi_name].apply(
+            lambda v: f"{v:.1f}% | {get_status(v, target, scoring_strictness)}"
+        )
+
+    st.markdown("**Performance vs Target (RAG Status)**")
+    st.dataframe(status_view, use_container_width=True, hide_index=True)
+
+    # KPI to 1-5 score view
+    score_view = edited_df[["Business Unit"]].copy()
+    score_cols = []
+    for kpi_name, target in kpis.items():
+        score_col = f"{kpi_name} Score"
+        edited_df[score_col] = edited_df[kpi_name].apply(
+            lambda v: kpi_to_score(v, target, scoring_strictness)
+        )
+        score_view[kpi_name] = edited_df[score_col]
+        score_cols.append(score_col)
+
+    st.markdown("**Converted 1–5 KPI Scores**")
+    st.dataframe(score_view, use_container_width=True, hide_index=True)
+
+    # Tower score
+    edited_df[tower_name] = edited_df[score_cols].mean(axis=1)
 
 # -------------------------
-# 7. TOWER SCORE CALCULATION
+# 8. OUTCOME SCORE
 # -------------------------
-for col, target in ao_kpis.items():
-    edited_df[f"{col} Score"] = edited_df[col].apply(lambda v: kpi_to_score(v, target, scoring_strictness))
-
-for col, target in ad_kpis.items():
-    edited_df[f"{col} Score"] = edited_df[col].apply(lambda v: kpi_to_score(v, target, scoring_strictness))
-
-for col, target in tr_kpis.items():
-    edited_df[f"{col} Score"] = edited_df[col].apply(lambda v: kpi_to_score(v, target, scoring_strictness))
-
-for col, target in ai_kpis.items():
-    edited_df[f"{col} Score"] = edited_df[col].apply(lambda v: kpi_to_score(v, target, scoring_strictness))
-
-edited_df["Application Operations"] = edited_df[[f"{c} Score" for c in ao_kpis.keys()]].mean(axis=1)
-edited_df["Application Development"] = edited_df[[f"{c} Score" for c in ad_kpis.keys()]].mean(axis=1)
-edited_df["Transformation"] = edited_df[[f"{c} Score" for c in tr_kpis.keys()]].mean(axis=1)
-edited_df["AI Governance"] = edited_df[[f"{c} Score" for c in ai_kpis.keys()]].mean(axis=1)
-
 edited_df["Outcome Score"] = (
     edited_df["Application Operations"] * tower_weights["Application Operations"] +
     edited_df["Application Development"] * tower_weights["Application Development"] +
@@ -288,10 +312,9 @@ edited_df["Outcome Status"] = np.where(
 )
 
 sorted_df = edited_df.sort_values("Outcome Score", ascending=False).reset_index(drop=True)
-sorted_df.index = sorted_df.index + 1
 
 # -------------------------
-# 8. EXECUTIVE SNAPSHOT
+# 9. EXECUTIVE SNAPSHOT
 # -------------------------
 st.markdown("## Executive Outcome Snapshot")
 
@@ -311,7 +334,7 @@ with k4:
     st.metric("At Risk Units", f"{at_risk_units}")
 
 # -------------------------
-# 9. TOWER PERFORMANCE OVERVIEW
+# 10. TOWER PERFORMANCE OVERVIEW
 # -------------------------
 st.markdown("## Tower Performance Overview")
 
@@ -333,33 +356,34 @@ tower_avg = pd.DataFrame({
 st.bar_chart(tower_avg.set_index("Tower"))
 
 # -------------------------
-# 10. RANKED OUTPUT
+# 11. RANKED BUSINESS UNITS
 # -------------------------
 st.markdown("## Ranked Business Units by Outcome Score")
 
-st.dataframe(
-    sorted_df[
-        [
-            "Business Unit",
-            "Application Operations",
-            "Application Development",
-            "Transformation",
-            "AI Governance",
-            "Outcome Score",
-            "Outcome Status",
-        ]
-    ],
-    use_container_width=True,
-    hide_index=True,
-)
+display_df = sorted_df[
+    [
+        "Business Unit",
+        "Application Operations",
+        "Application Development",
+        "Transformation",
+        "AI Governance",
+        "Outcome Score",
+        "Outcome Status",
+    ]
+].copy()
+
+display_df.index = range(1, len(display_df) + 1)
+
+st.dataframe(display_df, use_container_width=True)
 
 st.markdown("---")
 st.markdown("""
 ### How to use this dashboard
 
-1. The observability agent simulates live KPI changes across 24 measurable outcome KPIs.
-2. Each business unit is assessed across four outcome towers: Application Operations, Application Development, Transformation, and AI Governance.
-3. KPI values are compared against targets and translated into Green / Amber / Red status, then rolled up into tower scores.
-4. Tower scores are combined into an overall weighted Outcome Score.
-5. Leadership can identify strong vs at-risk business units in real time.
+1. Start with the **KPI Targets** to establish expected business outcomes.
+2. Review **Observed KPI Performance** captured from observability signals.
+3. Use **Performance vs Target (RAG Status)** to show Green / Amber / Red evaluation.
+4. Translate KPI performance into standardized **1–5 KPI Scores**.
+5. Roll KPI scores into tower scores, then into an overall **Outcome Score**.
+6. Use the simulation controls to show how outcome posture changes in real time.
 """)

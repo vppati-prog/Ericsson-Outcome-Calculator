@@ -3,291 +3,259 @@ import pandas as pd
 import numpy as np
 import os
 import random
- 
+
 st.set_page_config(page_title="Ericsson Outcome Calculator", layout="wide")
- 
+
+st.markdown("""
+# Ericsson Outcome Intelligence Dashboard
+### Observability-driven Outcome Calculator
+""")
+st.markdown("---")
+
 # -------------------------
 # 1. SIDEBAR – GLOBAL SETTINGS
 # -------------------------
 st.sidebar.title("Outcome Control Panel")
- 
-st.sidebar.markdown("### Dimension Weights (sum ≈ 100%)")
-w_scope = st.sidebar.slider("Scope Repeatability %", 0, 50, 20, 1)
-w_template = st.sidebar.slider("Template Maturity %", 0, 50, 20, 1)
-w_variance = st.sidebar.slider("Variance Predictability %", 0, 50, 20, 1)
-w_dependency = st.sidebar.slider("Dependency Complexity %", 0, 50, 15, 1)
-w_language = st.sidebar.slider("Language / Business Intensity %", 0, 50, 10, 1)
-w_governance = st.sidebar.slider("Governance & Data Readiness %", 0, 50, 15, 1)
- 
-weight_sum = w_scope + w_template + w_variance + w_dependency + w_language + w_governance
+
+st.sidebar.markdown("### Outcome Tower Weights (sum ≈ 100%)")
+w_ops = st.sidebar.slider("Application Operations %", 0, 50, 30, 1)
+w_dev = st.sidebar.slider("Application Development %", 0, 50, 25, 1)
+w_trans = st.sidebar.slider("Transformation %", 0, 50, 25, 1)
+w_ai_gov = st.sidebar.slider("AI Governance %", 0, 50, 20, 1)
+
+weight_sum = w_ops + w_dev + w_trans + w_ai_gov
 if weight_sum == 0:
-    weight_sum = 1  # avoid division by zero
- 
-weights = {
-    "Scope Repeatability": w_scope / weight_sum,
-    "Template Maturity": w_template / weight_sum,
-    "Variance Predictability": w_variance / weight_sum,
-    "Dependency Complexity": w_dependency / weight_sum,
-    "Language / Business Intensity": w_language / weight_sum,
-    "Governance & Data Readiness": w_governance / weight_sum,
+    weight_sum = 1
+
+tower_weights = {
+    "Application Operations": w_ops / weight_sum,
+    "Application Development": w_dev / weight_sum,
+    "Transformation": w_trans / weight_sum,
+    "AI Governance": w_ai_gov / weight_sum,
 }
- 
+
 st.sidebar.markdown("---")
-pilot_threshold = st.sidebar.slider("Minimum DRI score to qualify as FP Pilot", 0.0, 5.0, 3.5, 0.1)
-st.sidebar.markdown("Projects with DRI ≥ threshold will be flagged as **Pilot Candidates**.")
- 
+outcome_threshold = st.sidebar.slider("Minimum Outcome Score", 0.0, 5.0, 3.5, 0.1)
+st.sidebar.markdown("Delivery Units with Outcome Score ≥ threshold will be flagged as **Strong**.")
+
 # -------------------------
 # 2. SAMPLE BASELINE DATA
 # -------------------------
-# Scores are on a 1–5 scale, 5 = high readiness
-@st.cache_data(ttl=60)
+@st.cache_data
 def load_observed_scores():
-    if os.path.exists("dri_observations.csv"):
-        return pd.read_csv("dri_observations.csv")
-    else:
-        # fallback until agent runs first time
-        return pd.DataFrame(
-            [
-                ["MDG-S Rollout", 4.5, 4.5, 4.0, 3.5, 3.5, 4.0],
-            ],
-            columns=[
-                "Project",
-                "Scope Repeatability",
-                "Template Maturity",
-                "Variance Predictability",
-                "Dependency Complexity",
-                "Language / Business Intensity",
-                "Governance & Data Readiness",
-            ],
-        )
- 
+    if os.path.exists("outcome_observations.csv"):
+        return pd.read_csv("outcome_observations.csv")
+
+    return pd.DataFrame(
+        [
+            ["ERP Managed Services", 4.0, 3.5, 3.0, 4.5],
+            ["Digital Commerce", 3.5, 4.0, 4.5, 3.5],
+            ["Supply Chain Platforms", 4.5, 3.0, 3.5, 4.0],
+            ["Customer Experience Apps", 3.0, 4.5, 4.0, 3.0],
+            ["Network Services", 4.0, 3.0, 4.0, 4.5],
+            ["Business Support Systems", 3.5, 3.5, 3.0, 4.0],
+            ["Enterprise Platforms", 4.5, 4.0, 4.5, 4.5],
+            ["Field Operations Apps", 3.0, 3.5, 3.5, 3.0],
+        ],
+        columns=[
+            "Delivery Unit",
+            "Application Operations",
+            "Application Development",
+            "Transformation",
+            "AI Governance",
+        ],
+    )
+
 def run_observability_agent(run_id=0):
-    # Read raw metrics for all 8 projects
-    raw = pd.read_csv("raw_rollout_metrics.csv")
- 
-    def jitter(value, pct=0.15, min_val=None, max_val=None):
-        delta = value * pct
-        new = value + np.random.uniform(-delta, delta)
-        if min_val is not None:
-            new = max(min_val, new)
-        if max_val is not None:
-            new = min(max_val, new)
-        return new
- 
-    # Simulate new observations
-    if "avg_effort_deviation_pct" in raw.columns:
-        raw["avg_effort_deviation_pct"] = raw["avg_effort_deviation_pct"].apply(
-            lambda v: jitter(v, pct=0.2, min_val=0, max_val=60)
-        )
-    if "avg_duration_deviation_pct" in raw.columns:
-        raw["avg_duration_deviation_pct"] = raw["avg_duration_deviation_pct"].apply(
-            lambda v: jitter(v, pct=0.2, min_val=0, max_val=60)
-        )
-    if "data_readiness_pct" in raw.columns:
-        raw["data_readiness_pct"] = raw["data_readiness_pct"].apply(
-            lambda v: jitter(v, pct=0.05, min_val=70, max_val=99)
-        )
- 
-    def score_scope_repeatability(row):
-        if row["rollouts_done"] >= 10:
-            return 5
-        elif row["rollouts_done"] >= 6:
-            return 4
-        elif row["rollouts_done"] >= 3:
-            return 3
-        elif row["rollouts_done"] >= 1:
-            return 2
-        else:
-            return 1
- 
-    def score_template_maturity(row):
-        changes = row["template_changes_last3"]
-        if changes == 0:
-            return 5
-        elif changes == 1:
-            return 4
-        elif changes == 2:
-            return 3
-        elif changes == 3:
-            return 2
-        else:
-            return 1
- 
-    def score_variance_predictability(row):
-        dev = max(row["avg_effort_deviation_pct"], row["avg_duration_deviation_pct"])
-        if dev <= 10:
-            return 5
-        elif dev <= 15:
-            return 4
-        elif dev <= 25:
-            return 3
-        elif dev <= 35:
-            return 2
-        else:
-            return 1
- 
-    def score_dependency_complexity(row):
-        integ = row["integrations_count"]
-        incidents = row["dependency_incidents_last3"]
-        if integ <= 2 and incidents == 0:
-            return 5
-        elif integ <= 3 and incidents <= 1:
-            return 4
-        elif integ <= 4 and incidents <= 2:
-            return 3
-        elif integ <= 5 and incidents <= 4:
-            return 2
-        else:
-            return 1
- 
-    def score_language_intensity(row):
-        workshops = row["business_workshops"]
-        loc = row["localisation_changes"]
-        if workshops <= 2 and loc == 0:
-            return 5
-        elif workshops <= 3 and loc <= 1:
-            return 4
-        elif workshops <= 4 and loc <= 1:
-            return 3
-        elif workshops <= 6 and loc <= 3:
-            return 2
-        else:
-            return 1
- 
-    def score_governance_readiness(row):
-        readiness = row["data_readiness_pct"]
-        failed = row["failed_quality_gates_last3"]
-        if readiness >= 95 and failed == 0:
-            return 5
-        elif readiness >= 92 and failed <= 1:
-            return 4
-        elif readiness >= 88 and failed <= 2:
-            return 3
-        elif readiness >= 80 and failed <= 3:
-            return 2
-        else:
-            return 1
- 
-    out = pd.DataFrame()
-    out["Project"] = raw["project_id"]
-    out["Scope Repeatability"] = raw.apply(score_scope_repeatability, axis=1)
-    out["Template Maturity"] = raw.apply(score_template_maturity, axis=1)
-    out["Variance Predictability"] = raw.apply(score_variance_predictability, axis=1)
-    out["Dependency Complexity"] = raw.apply(score_dependency_complexity, axis=1)
-    out["Language / Business Intensity"] = raw.apply(score_language_intensity, axis=1)
-    out["Governance & Data Readiness"] = raw.apply(score_governance_readiness, axis=1)
- 
-# --- Demo dynamism: dramatic re-score per run ---
     rng = random.Random(1000 + run_id)
 
+    out = load_observed_scores().copy()
+
     score_cols = [
-        "Scope Repeatability",
-        "Template Maturity",
-        "Variance Predictability",
-        "Dependency Complexity",
-        "Language / Business Intensity",
-        "Governance & Data Readiness",
+        "Application Operations",
+        "Application Development",
+        "Transformation",
+        "AI Governance",
     ]
 
+    for col in score_cols:
+        if col not in out.columns:
+            out[col] = 3.0
+
     def dramatic_score(x):
-        # 90% chance: jump to a totally new score (demo drama)
-        if rng.random() < 1.0:
+        if rng.random() < 0.9:
             return rng.choice([1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0])
-        # 10% chance: keep same
         return x
 
     for col in score_cols:
         out[col] = out[col].apply(dramatic_score)
 
-    out.to_csv("dri_observations.csv", index=False)
+    out.to_csv("outcome_observations.csv", index=False)
 
 if "agent_run_id" not in st.session_state:
-    st.session_state.agent_run_id = 0 
+    st.session_state.agent_run_id = 0
 
 st.markdown("### Observability Agent")
-if st.button("Simulate new rollout data (run agent)"):
+
+if st.button("Simulate new outcome telemetry (run agent)"):
     st.session_state.agent_run_id += 1
     run_observability_agent(st.session_state.agent_run_id)
     load_observed_scores.clear()
+
+    events = [
+        "Incident spike detected in Application Operations telemetry",
+        "Release acceleration improved Application Development outcomes",
+        "Transformation momentum increased due to automation adoption",
+        "AI Governance variance identified in compliance and audit controls",
+        "Operational stability improved due to reduced failure rates",
+    ]
+
+    rng = random.Random(5000 + st.session_state.agent_run_id)
+    st.info(f"Observability Insight: {rng.choice(events)}")
+
     st.rerun()
 
 df = load_observed_scores()
 df.index = df.index + 1
- 
-# Allow user tweaks of baseline scores
+
+# -------------------------
+# 3. EDITABLE TABLE
+# -------------------------
 st.markdown("## Ericsson Outcome Metrics – Delivery Units")
 st.markdown(
-    "You can fine‑tune 1–5 scores below (while on T&M) to reflect actual rollout experience. "
-    "The DRI engine recomputes scores and pilot candidates in real time."
+    "You can fine-tune 1–5 outcome scores below. The Outcome engine recomputes weighted scores in real time."
 )
- 
+
 edited_df = st.data_editor(
     df,
     use_container_width=True,
     num_rows="fixed",
     column_config={
-        "Scope Repeatability": st.column_config.NumberColumn(min_value=1.0, max_value=5.0, step=0.5),
-        "Template Maturity": st.column_config.NumberColumn(min_value=1.0, max_value=5.0, step=0.5),
-        "Variance Predictability": st.column_config.NumberColumn(min_value=1.0, max_value=5.0, step=0.5),
-        "Dependency Complexity": st.column_config.NumberColumn(min_value=1.0, max_value=5.0, step=0.5),
-        "Language / Business Intensity": st.column_config.NumberColumn(min_value=1.0, max_value=5.0, step=0.5),
-        "Governance & Data Readiness": st.column_config.NumberColumn(min_value=1.0, max_value=5.0, step=0.5),
+        "Application Operations": st.column_config.NumberColumn(min_value=1.0, max_value=5.0, step=0.5),
+        "Application Development": st.column_config.NumberColumn(min_value=1.0, max_value=5.0, step=0.5),
+        "Transformation": st.column_config.NumberColumn(min_value=1.0, max_value=5.0, step=0.5),
+        "AI Governance": st.column_config.NumberColumn(min_value=1.0, max_value=5.0, step=0.5),
     },
 )
- 
+
 # -------------------------
-# 3. DRI CALCULATION
+# 4. OUTCOME CALCULATION
 # -------------------------
-def compute_dri(row, w):
+def compute_outcome_score(row, w):
     return (
-        row["Scope Repeatability"] * w["Scope Repeatability"]
-        + row["Template Maturity"] * w["Template Maturity"]
-        + row["Variance Predictability"] * w["Variance Predictability"]
-        + row["Dependency Complexity"] * w["Dependency Complexity"]
-        + row["Language / Business Intensity"] * w["Language / Business Intensity"]
-        + row["Governance & Data Readiness"] * w["Governance & Data Readiness"]
+        row["Application Operations"] * w["Application Operations"] +
+        row["Application Development"] * w["Application Development"] +
+        row["Transformation"] * w["Transformation"] +
+        row["AI Governance"] * w["AI Governance"]
     )
- 
-edited_df["DRI Score"] = edited_df.apply(lambda r: compute_dri(r, weights), axis=1)
-edited_df["Pilot Candidate"] = np.where(
-    edited_df["DRI Score"] >= pilot_threshold, "Yes", "No"
+
+edited_df["Outcome Score"] = edited_df.apply(
+    lambda r: compute_outcome_score(r, tower_weights), axis=1
 )
- 
-sorted_df = edited_df.sort_values("DRI Score", ascending=False).reset_index(drop=True)
- 
+
+edited_df["Outcome Status"] = np.where(
+    edited_df["Outcome Score"] >= outcome_threshold,
+    "🟢 Strong",
+    "🔴 At Risk"
+)
+
+sorted_df = edited_df.sort_values("Outcome Score", ascending=False).reset_index(drop=True)
+sorted_df.index = sorted_df.index + 1
+
 # -------------------------
-# 4. MAIN LAYOUT
+# 5. EXECUTIVE SNAPSHOT
+# -------------------------
+st.markdown("## Executive Outcome Snapshot")
+
+strong_units = (sorted_df["Outcome Status"] == "🟢 Strong").sum()
+at_risk_units = (sorted_df["Outcome Status"] == "🔴 At Risk").sum()
+avg_outcome = sorted_df["Outcome Score"].mean()
+top_outcome = sorted_df["Outcome Score"].max()
+
+k1, k2, k3, k4 = st.columns(4)
+
+with k1:
+    st.metric("Average Outcome Score", f"{avg_outcome:.2f}")
+with k2:
+    st.metric("Top Outcome Score", f"{top_outcome:.2f}")
+with k3:
+    st.metric("Strong Units", f"{strong_units}")
+with k4:
+    st.metric("At Risk Units", f"{at_risk_units}")
+
+st.markdown("## Tower Performance Overview")
+
+tower_avg = pd.DataFrame({
+    "Tower": [
+        "Application Operations",
+        "Application Development",
+        "Transformation",
+        "AI Governance",
+    ],
+    "Average Score": [
+        sorted_df["Application Operations"].mean(),
+        sorted_df["Application Development"].mean(),
+        sorted_df["Transformation"].mean(),
+        sorted_df["AI Governance"].mean(),
+    ]
+})
+
+st.bar_chart(tower_avg.set_index("Tower"))
+
+# -------------------------
+# 6. MAIN LAYOUT
 # -------------------------
 col1, col2 = st.columns([2, 1])
- 
+
 with col1:
-    st.markdown("### Ranked Project List by DRI Score")
+    st.markdown("### Ranked Delivery Units by Outcome Score")
     st.dataframe(
-        sorted_df,
+        sorted_df[
+            [
+                "Delivery Unit",
+                "Application Operations",
+                "Application Development",
+                "Transformation",
+                "AI Governance",
+                "Outcome Score",
+                "Outcome Status",
+            ]
+        ],
         use_container_width=True,
         hide_index=True,
     )
- 
+
 with col2:
-    st.markdown("### Pilot Candidate Summary")
-    st.metric("Pilot Threshold (DRI)", f"{pilot_threshold:0.1f}")
-    total = len(sorted_df)
-    pilots = (sorted_df["Pilot Candidate"] == "Yes").sum()
-    st.metric("Number of Pilot Candidates", f"{pilots} of {total}")
-    st.progress(pilots / total if total > 0 else 0.0)
- 
-    st.markdown("#### Dimension Weights (Normalised)")
-    for dim, w in weights.items():
-        st.write(f"{dim}: {w*100:0.1f}%")
- 
+    st.markdown("### Outcome Summary")
+
+    col_a, col_b, col_c = st.columns(3)
+
+    with col_a:
+        st.metric("Minimum Outcome Score", f"{outcome_threshold:.1f}")
+
+    with col_b:
+        st.metric("Strong Units", f"{strong_units} / {len(sorted_df)}")
+
+    with col_c:
+        st.metric("Top Outcome Score", f"{top_outcome:.2f}")
+
+    st.markdown("### Tower Weights")
+    st.write(
+        {
+            "Application Operations": round(tower_weights["Application Operations"], 2),
+            "Application Development": round(tower_weights["Application Development"], 2),
+            "Transformation": round(tower_weights["Transformation"], 2),
+            "AI Governance": round(tower_weights["AI Governance"], 2),
+        }
+    )
+
 st.markdown("---")
-st.markdown(
-    """
-### How to use the DRI Tool
- 
-1. **Seamlessly allow the Observability agent to collect the baseline** scores from the T&M Rollout Stage. Thereafter, the Observability agent will populate the DRI engine.
-2. **The weight sliders** reflect what may matter most for Richemont (template maturity vs. dependency risk, etc.).  
-3. **Scores get updated dynamically** based on new information about specific project rollouts.  
-4. The **DRI ranking and pilot flags update instantly**, demonstrating an evidence‑based, objective route to Fixed Price pilots.
-"""
-)
+st.markdown("""
+### How to use the Outcome Calculator
+
+1. Use the **Observability Agent** to simulate live telemetry changes.
+2. Adjust the **tower weights** to reflect Ericsson priorities.
+3. Fine-tune **Delivery Unit scores** directly in the editable table.
+4. Review the **Outcome Score, status, and ranking** in real time.
+5. Use the **Executive Snapshot** and **Tower Performance Overview** for leadership storytelling.
+""")

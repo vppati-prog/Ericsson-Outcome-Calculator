@@ -94,9 +94,16 @@ st.sidebar.markdown(
 # -------------------------
 @st.cache_data
 def load_observed_scores():
-    if os.path.exists("outcome_observations.csv"):
-        return pd.read_csv("outcome_observations.csv")
+    expected_columns = ["Business Unit"] + all_kpis
 
+    if os.path.exists("outcome_observations.csv"):
+        loaded_df = pd.read_csv("outcome_observations.csv")
+
+        # If structure matches current KPI model, use it
+        if list(loaded_df.columns) == expected_columns:
+            return loaded_df
+
+    # Otherwise rebuild clean baseline
     return pd.DataFrame([
         [
             "ERP Managed Services",
@@ -140,7 +147,7 @@ def load_observed_scores():
             63, 29, 25, 21,
             97, 96, 99.9, 100
         ],
-    ], columns=["Business Unit"] + all_kpis)
+    ], columns=expected_columns)
 
 # -------------------------
 # 4. OBSERVABILITY AGENT
@@ -148,6 +155,14 @@ def load_observed_scores():
 def run_observability_agent(run_id=0):
     rng = random.Random(1000 + run_id)
     out = load_observed_scores().copy()
+
+    # Ensure all expected KPI columns exist
+    for col in all_kpis:
+        if col not in out.columns:
+            out[col] = 0.0
+
+    # Keep only expected columns in correct order
+    out = out[["Business Unit"] + all_kpis]
 
     for col in all_kpis:
         def simulate(x):
